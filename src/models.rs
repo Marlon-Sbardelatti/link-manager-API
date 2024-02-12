@@ -1,4 +1,5 @@
 use crate::schema::links;
+use crate::schema::users;
 use diesel::Insertable;
 use diesel::Queryable;
 use serde::Deserialize;
@@ -17,4 +18,19 @@ pub struct Link {
 #[diesel(table_name = links)]
 pub struct NewLink {
     pub url: String,
+}
+
+#[derive(Serialize, Debug, Queryable, Deserialize)]
+pub struct User {
+    pub id: i32,
+    pub name: String,
+    pub email: String,
+    pub created_at: String,
+}
+
+#[derive(Deserialize, Debug, Insertable)]
+#[diesel(table_name = users)]
+pub struct NewUser {
+    pub name: String,
+    pub email: String,
 }

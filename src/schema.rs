@@ -7,3 +7,17 @@ diesel::table! {
         created_at -> Timestamp,
     }
 }
+
+diesel::table! {
+    users (id) {
+        id -> Integer,
+        name -> Text,
+        email -> Text,
+        created_at -> Timestamp,
+    }
+}
+
+diesel::allow_tables_to_appear_in_same_query!(
+    links,
+    users,
+);

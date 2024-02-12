@@ -1,12 +1,13 @@
 use crate::{
-    models::{Link, NewLink},
+    models::{Link, NewLink, NewUser, User},
     schema::links,
+    schema::users,
 };
 use diesel::prelude::*;
 
-pub struct Controller;
+pub struct LinkController;
 
-impl Controller {
+impl LinkController {
     pub fn find_one(c: &mut SqliteConnection, id: i32) -> QueryResult<Link> {
         links::table::find(links::table, id).get_result::<Link>(c)
     }
@@ -14,7 +15,8 @@ impl Controller {
         links::table
             .order(links::id.desc())
             .limit(1000)
-            .load::<Link>(c)
+            // .load::<Link>(c)
+            .load(c)
     }
 
     pub fn create(c: &mut SqliteConnection, new_link: NewLink) -> QueryResult<Link> {
@@ -35,6 +37,40 @@ impl Controller {
     pub fn last_id(c: &mut SqliteConnection) -> QueryResult<i32> {
         links::table::select(links::table, links::id)
             .order(links::id.desc())
+            .first(c)
+    }
+}
+
+pub struct UserController;
+
+impl UserController {
+    pub fn find_one(c: &mut SqliteConnection, id: i32) -> QueryResult<User> {
+        users::table::find(users::table, id).get_result::<User>(c)
+    }
+
+    pub fn find_many(c: &mut SqliteConnection) -> QueryResult<Vec<User>> {
+        users::table.order(users::id.desc()).limit(1000).load(c)
+    }
+
+    pub fn create(c: &mut SqliteConnection, new_user: NewUser) -> QueryResult<User> {
+        diesel::insert_into(users::table)
+            .values(new_user)
+            .execute(c)?;
+
+        let last_id = Self::last_id(c)?;
+        Self::find_one(c, last_id)
+    }
+
+    pub fn delete(c: &mut SqliteConnection, id: i32) -> QueryResult<usize> {
+        if Self::find_one(c, id).is_err() {
+            return Err(diesel::result::Error::NotFound);
+        }
+        diesel::delete(users::table.find(id)).execute(c)
+    }
+
+    pub fn last_id(c: &mut SqliteConnection) -> QueryResult<i32> {
+        users::table::select(users::table, users::id)
+            .order(users::id.desc())
             .first(c)
     }
 }

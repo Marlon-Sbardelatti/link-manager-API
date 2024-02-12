@@ -7,7 +7,9 @@ mod controllers;
 mod models;
 mod schema;
 use crate::models::NewLink;
-use controllers::Controller;
+use crate::models::NewUser;
+use controllers::LinkController;
+use controllers::UserController;
 use rocket::http::Status;
 use rocket_sync_db_pools::database;
 
@@ -18,9 +20,55 @@ extern crate rocket;
 
 struct DbConn(diesel::SqliteConnection);
 
+//USERS
+
+#[get("/users")]
+async fn all_users(db: DbConn) -> Result<Value, Custom<Value>> {
+    db.run(|c| match UserController::find_many(c) {
+        Ok(users) => Ok(json!(users)),
+        Err(e) => Err(Custom(Status::InternalServerError, json!(e.to_string()))),
+    })
+    .await
+}
+
+#[get("/users/<id>")]
+async fn user(db: DbConn, id: i32) -> Result<Value, Custom<Value>> {
+    db.run(move |c| match UserController::find_one(c, id) {
+        Ok(user) => Ok(json!(user)),
+        Err(e) => match e {
+            NotFound => Err(Custom(Status::NotFound, json!(e.to_string()))),
+            _ => Err(Custom(Status::InternalServerError, json!(e.to_string()))),
+        },
+    })
+    .await
+}
+
+#[post("/users", format = "json", data = "<new_user>")]
+async fn create_user(db: DbConn, new_user: Json<NewUser>) -> Result<Value, Custom<Value>> {
+    db.run(|c| match UserController::create(c, new_user.into_inner()) {
+        Ok(user) => Ok(json!(user)),
+        Err(e) => Err(Custom(Status::InternalServerError, json!(e.to_string()))),
+    })
+    .await
+}
+
+#[delete("/users/<id>")]
+async fn delete_user(db: DbConn, id: i32) -> Result<Value, Custom<Value>> {
+    db.run(move |c| match UserController::delete(c, id) {
+        Ok(_) => Ok(json!("User deleted")),
+        Err(e) => match e {
+            NotFound => Err(Custom(Status::NotFound, json!(e.to_string()))),
+            _ => Err(Custom(Status::InternalServerError, json!(e.to_string()))),
+        }
+    })
+    .await
+}
+
+//LINKS
+
 #[get("/")]
 async fn all(db: DbConn) -> Result<Value, Custom<Value>> {
-    db.run(|c| match Controller::find_many(c) {
+    db.run(|c| match LinkController::find_many(c) {
         Ok(links) => Ok(json!(links)),
         Err(e) => Err(Custom(Status::InternalServerError, json!(e.to_string()))),
     })
@@ -29,7 +77,7 @@ async fn all(db: DbConn) -> Result<Value, Custom<Value>> {
 
 #[get("/<id>")]
 async fn find_by_id(db: DbConn, id: i32) -> Result<Value, Custom<Value>> {
-    db.run(move |c| match Controller::find_one(c, id) {
+    db.run(move |c| match LinkController::find_one(c, id) {
         Ok(link) => Ok(json!(link)),
         Err(e) => {
             println!("{:?}", e);
@@ -44,7 +92,7 @@ async fn find_by_id(db: DbConn, id: i32) -> Result<Value, Custom<Value>> {
 
 #[post("/", format = "json", data = "<new_link>")]
 async fn save_link(new_link: Json<NewLink>, db: DbConn) -> Result<Value, Custom<Value>> {
-    db.run(|c| match Controller::create(c, new_link.into_inner()) {
+    db.run(|c| match LinkController::create(c, new_link.into_inner()) {
         Ok(link) => Ok(json!(link)),
         Err(e) => Err(Custom(Status::InternalServerError, json!(e.to_string()))),
     })
@@ -53,16 +101,12 @@ async fn save_link(new_link: Json<NewLink>, db: DbConn) -> Result<Value, Custom<
 
 #[delete("/<id>")]
 async fn delete_link(db: DbConn, id: i32) -> Result<Value, Custom<Value>> {
-    db.run(move |c| {
-        match Controller::delete(c, id) {
-            Ok(_) => Ok(json!("User deleted")),
-            Err(e) => {
-                match e {
-                   NotFound =>  Err(Custom(Status::NotFound, json!(e.to_string()))), 
-                   _ => Err(Custom(Status::InternalServerError, json!(e.to_string()))), 
-                }
-            }
-        }
+    db.run(move |c| match LinkController::delete(c, id) {
+        Ok(_) => Ok(json!("User deleted")),
+        Err(e) => match e {
+            NotFound => Err(Custom(Status::NotFound, json!(e.to_string()))),
+            _ => Err(Custom(Status::InternalServerError, json!(e.to_string()))),
+        },
     })
     .await
 }
@@ -88,7 +132,19 @@ fn bad_request() -> Value {
 #[rocket::main]
 async fn main() {
     let _ = rocket::build()
-        .mount("/", routes![all, find_by_id, save_link, delete_link])
+        .mount(
+            "/",
+            routes![
+                all,
+                find_by_id,
+                save_link,
+                delete_link,
+                user,
+                delete_user,
+                create_user,
+                all_users
+            ],
+        )
         .register(
             "/",
             catchers![not_found, unprocessable_entity, unauthorized, bad_request],
