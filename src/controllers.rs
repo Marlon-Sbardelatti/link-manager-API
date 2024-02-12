@@ -27,6 +27,18 @@ impl LinkController {
         Self::find_one(c, last_id)
     }
 
+    pub fn update(c: &mut SqliteConnection, link: Link, id: i32) -> QueryResult<Link> {
+        if Self::find_one(c, id).is_err() {
+            return Err(diesel::result::Error::NotFound);
+        } else {
+            diesel::update(links::table::find(links::table, id))
+                .set(links::url.eq(link.url.to_owned()))
+                .execute(c)?;
+
+            Self::find_one(c, id)
+        }
+    }
+
     pub fn delete(c: &mut SqliteConnection, id: i32) -> QueryResult<usize> {
         if Self::find_one(c, id).is_err() {
             return Err(diesel::result::Error::NotFound);
@@ -59,6 +71,20 @@ impl UserController {
 
         let last_id = Self::last_id(c)?;
         Self::find_one(c, last_id)
+    }
+
+    pub fn update(c: &mut SqliteConnection, user: User, id: i32) -> QueryResult<User> {
+        if Self::find_one(c, id).is_err() {
+            return Err(diesel::result::Error::NotFound);
+        } else {
+            diesel::update(users::table::find(users::table, id))
+                .set((
+                    users::name.eq(user.name.to_owned()),
+                    users::email.eq(user.email.to_owned()),
+                ))
+                .execute(c)?;
+            Self::find_one(c, id)
+        }
     }
 
     pub fn delete(c: &mut SqliteConnection, id: i32) -> QueryResult<usize> {

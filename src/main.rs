@@ -6,8 +6,10 @@ use rocket::{
 mod controllers;
 mod models;
 mod schema;
+use crate::models::Link;
 use crate::models::NewLink;
 use crate::models::NewUser;
+use crate::models::User;
 use controllers::LinkController;
 use controllers::UserController;
 use rocket::http::Status;
@@ -52,6 +54,21 @@ async fn create_user(db: DbConn, new_user: Json<NewUser>) -> Result<Value, Custo
     .await
 }
 
+#[put("/users/<id>", format = "json", data = "<user>")]
+async fn update_user(db: DbConn, user: Json<User>, id: i32) -> Result<Value, Custom<Value>>{
+    db.run(move |c|{
+        match UserController::update(c, user.into_inner(), id) {
+           Ok(user) => Ok(json!(user)),
+           Err(e) => {
+               match e {
+                  NotFound =>  Err(Custom(Status::NotFound, json!(e.to_string()))),
+                  _=> Err(Custom(Status::InternalServerError, json!(e.to_string()))),
+               }
+           }
+        }
+    }).await
+}
+
 #[delete("/users/<id>")]
 async fn delete_user(db: DbConn, id: i32) -> Result<Value, Custom<Value>> {
     db.run(move |c| match UserController::delete(c, id) {
@@ -59,14 +76,14 @@ async fn delete_user(db: DbConn, id: i32) -> Result<Value, Custom<Value>> {
         Err(e) => match e {
             NotFound => Err(Custom(Status::NotFound, json!(e.to_string()))),
             _ => Err(Custom(Status::InternalServerError, json!(e.to_string()))),
-        }
+        },
     })
     .await
 }
 
 //LINKS
 
-#[get("/")]
+#[get("/links")]
 async fn all(db: DbConn) -> Result<Value, Custom<Value>> {
     db.run(|c| match LinkController::find_many(c) {
         Ok(links) => Ok(json!(links)),
@@ -75,7 +92,7 @@ async fn all(db: DbConn) -> Result<Value, Custom<Value>> {
     .await
 }
 
-#[get("/<id>")]
+#[get("/links/<id>")]
 async fn find_by_id(db: DbConn, id: i32) -> Result<Value, Custom<Value>> {
     db.run(move |c| match LinkController::find_one(c, id) {
         Ok(link) => Ok(json!(link)),
@@ -91,7 +108,7 @@ async fn find_by_id(db: DbConn, id: i32) -> Result<Value, Custom<Value>> {
 }
 
 #[post("/", format = "json", data = "<new_link>")]
-async fn save_link(new_link: Json<NewLink>, db: DbConn) -> Result<Value, Custom<Value>> {
+async fn create_link(new_link: Json<NewLink>, db: DbConn) -> Result<Value, Custom<Value>> {
     db.run(|c| match LinkController::create(c, new_link.into_inner()) {
         Ok(link) => Ok(json!(link)),
         Err(e) => Err(Custom(Status::InternalServerError, json!(e.to_string()))),
@@ -99,7 +116,21 @@ async fn save_link(new_link: Json<NewLink>, db: DbConn) -> Result<Value, Custom<
     .await
 }
 
-#[delete("/<id>")]
+#[put("/links/<id>", format = "json", data = "<link>")]
+async fn update_link(db: DbConn, link: Json<Link>, id: i32) -> Result<Value, Custom<Value>> {
+    db.run(
+        move |c| match LinkController::update(c, link.into_inner(), id) {
+            Ok(link) => Ok(json!(link)),
+            Err(e) => match e {
+                NotFound => Err(Custom(Status::NotFound, json!(e.to_string()))),
+                _ => Err(Custom(Status::InternalServerError, json!(e.to_string()))),
+            },
+        },
+    )
+    .await
+}
+
+#[delete("/links/<id>")]
 async fn delete_link(db: DbConn, id: i32) -> Result<Value, Custom<Value>> {
     db.run(move |c| match LinkController::delete(c, id) {
         Ok(_) => Ok(json!("User deleted")),
@@ -137,12 +168,14 @@ async fn main() {
             routes![
                 all,
                 find_by_id,
-                save_link,
+                create_link,
                 delete_link,
+                update_link,
                 user,
                 delete_user,
                 create_user,
-                all_users
+                update_user,
+                all_users,
             ],
         )
         .register(
