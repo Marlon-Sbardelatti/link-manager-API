@@ -26,6 +26,7 @@ pub struct User {
     pub id: i32,
     pub name: String,
     pub email: String,
+    pub password: String,
     #[serde(skip_deserializing)]
     pub created_at: String,
 }
@@ -35,4 +36,5 @@ pub struct User {
 pub struct NewUser {
     pub name: String,
     pub email: String,
+    pub password: String,
 }

@@ -4,7 +4,6 @@ use crate::{
     schema::users,
 };
 use diesel::prelude::*;
-
 pub struct LinkController;
 
 impl LinkController {
@@ -29,7 +28,7 @@ impl LinkController {
 
     pub fn update(c: &mut SqliteConnection, link: Link, id: i32) -> QueryResult<Link> {
         if Self::find_one(c, id).is_err() {
-            return Err(diesel::result::Error::NotFound);
+            Err(diesel::result::Error::NotFound)
         } else {
             diesel::update(links::table::find(links::table, id))
                 .set(links::url.eq(link.url.to_owned()))
@@ -75,7 +74,7 @@ impl UserController {
 
     pub fn update(c: &mut SqliteConnection, user: User, id: i32) -> QueryResult<User> {
         if Self::find_one(c, id).is_err() {
-            return Err(diesel::result::Error::NotFound);
+            Err(diesel::result::Error::NotFound)
         } else {
             diesel::update(users::table::find(users::table, id))
                 .set((
@@ -98,5 +97,12 @@ impl UserController {
         users::table::select(users::table, users::id)
             .order(users::id.desc())
             .first(c)
+    }
+    pub fn find_user(c: &mut SqliteConnection, email: &String, password: &String) {
+        let user_result = users::table
+            .filter(users::email.eq(email.to_owned()))
+            .filter(users::password.eq(password.to_owned()))
+            .first::<User>(c);
+        println!("{:?}", user_result);
     }
 }
