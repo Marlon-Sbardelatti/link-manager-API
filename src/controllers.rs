@@ -80,6 +80,7 @@ impl UserController {
                 .set((
                     users::name.eq(user.name.to_owned()),
                     users::email.eq(user.email.to_owned()),
+                    users::password.eq(user.password.to_owned()),
                 ))
                 .execute(c)?;
             Self::find_one(c, id)
@@ -104,5 +105,16 @@ impl UserController {
             .filter(users::password.eq(password.to_owned()))
             .first::<User>(c);
         println!("{:?}", user_result);
+    }
+}
+
+pub struct Verifier;
+
+impl Verifier {
+    pub fn verify(c: &mut SqliteConnection, email: &str, password: &str) -> QueryResult<User> {
+        users::table
+            .filter(users::email.eq(email))
+            .filter(users::password.eq(password))
+            .first(c)
     }
 }
